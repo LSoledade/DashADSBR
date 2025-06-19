@@ -1,5 +1,31 @@
-For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+Vamos construir o projeto "Dash Ads BR". O objetivo é criar um dashboard simplificado para análise de performance de campanhas do Meta Ads (Facebook/Instagram).
 
-By default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+**Stack Tecnológica:**
+- **Frontend:** React com Vite e TypeScript.
+- **UI:** Ant Design e Ant Design Charts.
+- **Backend:** Supabase (Auth, Database, Edge Functions em Deno/TypeScript).
 
-Use icons from lucide-react for logos.
+**Plano de Execução:**
+Com base no "Plano de Projeto: Dash Ads BR", vamos executar os seguintes passos:
+
+**1. Estrutura do Banco de Dados no Supabase:**
+   - Crie os scripts SQL para gerar as tabelas: `profiles`, `meta_connections` e `ad_accounts_cache`, conforme a estrutura definida no plano.
+
+**2. Backend com Edge Functions:**
+   - Crie as três Edge Functions essenciais em Deno/TypeScript:
+     a. `handle-meta-oauth`: Para gerenciar o callback do OAuth do Meta, trocar o código pelo token de acesso e salvá-lo de forma segura no banco.
+     b. `get-ad-accounts`: Para buscar e listar as contas de anúncio do usuário conectado.
+     c. `get-dashboard-insights`: Para buscar as métricas de performance (spend, impressions, clicks, ctr, cpc, actions) de uma conta de anúncio específica, recebendo um intervalo de datas como parâmetro.
+
+**3. Frontend com React e Ant Design:**
+   - Crie a estrutura de páginas e componentes:
+     a. **Fluxo de Autenticação:** Uma `LoginPage` que usa o Supabase Auth (Magic Link ou E-mail/Senha).
+     b. **Fluxo de Conexão:** Uma `OnboardingPage` que é exibida após o login se o usuário ainda não conectou sua conta do Meta. Ela deve conter o botão que inicia o fluxo OAuth e, após o sucesso, permitir que o usuário selecione qual conta de anúncios quer visualizar.
+     c. **Dashboard Principal:** A `DashboardPage`, que será a tela principal e deve conter:
+        - Um Header com um seletor (AntD `Select`) para trocar entre as contas de anúncio.
+        - Um seletor de período (AntD `DatePicker.RangePicker`).
+        - Cards de estatísticas (AntD `Card` e `Statistic`) para os KPIs principais.
+        - Uma tabela (AntD `Table`) com a lista das campanhas e suas métricas.
+        - Um gráfico de linhas (AntD Charts) mostrando a evolução do gasto ao longo do tempo.
+
+O produto final deve ser um repositório com o código completo e funcional do frontend e das Edge Functions.
