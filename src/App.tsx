@@ -7,6 +7,8 @@ import { LoginPage } from './pages/LoginPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { MetaCallbackPage } from './pages/MetaCallbackPage'
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
+import { TermsOfServicePage } from './pages/TermsOfServicePage'
 
 function App() {
   const { user, loading, initialize } = useAuthStore()
@@ -38,6 +40,8 @@ function App() {
     >
       <Router>
         <Routes>
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
           <Route 
             path="/login" 
             element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
