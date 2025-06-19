@@ -6,6 +6,7 @@ import { useAuthStore } from './store/authStore'
 import { LoginPage } from './pages/LoginPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { MetaCallbackPage } from './pages/MetaCallbackPage'
 
 function App() {
   const { user, loading, initialize } = useAuthStore()
@@ -44,6 +45,10 @@ function App() {
           <Route 
             path="/onboarding" 
             element={user ? <OnboardingPage /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/auth/meta/callback" 
+            element={user ? <MetaCallbackPage /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/dashboard" 

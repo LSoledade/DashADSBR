@@ -14,10 +14,10 @@ export const OnboardingPage: React.FC = () => {
     try {
       // Aqui construiremos a URL de OAuth do Meta
       const clientId = import.meta.env.VITE_META_APP_ID
-      const redirectUri = `${window.location.origin}/auth/meta/callback`
+      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/meta/callback`)
       const scope = 'ads_read,ads_management'
       
-      const metaOAuthUrl = `https://www.facebook.com/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
+      const metaOAuthUrl = `https://www.facebook.com/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`
       
       window.location.href = metaOAuthUrl
     } catch (error) {
