@@ -22,6 +22,7 @@ interface DashboardState {
   dateRange: [Dayjs, Dayjs]
   metrics: DashboardMetrics | null
   campaigns: any[]
+  chartData: any[]
   loading: boolean
   
   setSelectedAccount: (account: AdAccount | null) => void
@@ -29,6 +30,7 @@ interface DashboardState {
   setDateRange: (range: [Dayjs, Dayjs]) => void
   setMetrics: (metrics: DashboardMetrics | null) => void
   setCampaigns: (campaigns: any[]) => void
+  setChartData: (data: any[]) => void
   setLoading: (loading: boolean) => void
 }
 
@@ -38,6 +40,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   dateRange: [dayjs().subtract(7, 'day'), dayjs()],
   metrics: null,
   campaigns: [],
+  chartData: [],
   loading: false,
   
   setSelectedAccount: (account) => set({ selectedAccount: account }),
@@ -45,5 +48,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setDateRange: (range) => set({ dateRange: range }),
   setMetrics: (metrics) => set({ metrics }),
   setCampaigns: (campaigns) => set({ campaigns }),
+  setChartData: (data) => set({ chartData: data }),
   setLoading: (loading) => set({ loading })
 }))

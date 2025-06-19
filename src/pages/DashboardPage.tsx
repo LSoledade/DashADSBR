@@ -1,69 +1,18 @@
 import React, { useEffect } from 'react'
 import { Row, Col, Card, Statistic, DatePicker, Typography, Table, Space, Spin } from 'antd'
-import { TrendingUp, TrendingDown, Eye, MousePointer, Target, DollarSign } from 'lucide-react'
+import { TrendingUp, TrendingDown, Eye, MousePointer, Target, DollarSign, AlertCircle } from 'lucide-react'
 import { Line } from '@ant-design/charts'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
 import { useDashboardStore } from '../store/dashboardStore'
 import { AppLayout } from '../components/Layout/AppLayout'
+import { supabase } from '../lib/supabase'
+import { message } from 'antd'
 
 dayjs.locale('pt-br')
 
 const { RangePicker } = DatePicker
 const { Title } = Typography
-
-// Dados mock para desenvolvimento
-const mockMetrics = {
-  spend: 1245.67,
-  impressions: 45678,
-  clicks: 1234,
-  ctr: 2.7,
-  cpc: 1.01,
-  conversions: 87
-}
-
-const mockChartData = [
-  { date: '2024-01-01', gastos: 123.45, conversoes: 8 },
-  { date: '2024-01-02', gastos: 165.32, conversoes: 12 },
-  { date: '2024-01-03', gastos: 198.76, conversoes: 15 },
-  { date: '2024-01-04', gastos: 142.89, conversoes: 9 },
-  { date: '2024-01-05', gastos: 234.12, conversoes: 18 },
-  { date: '2024-01-06', gastos: 187.55, conversoes: 14 },
-  { date: '2024-01-07', gastos: 213.44, conversoes: 16 }
-]
-
-const mockCampaigns = [
-  {
-    key: '1',
-    name: 'Campanha Black Friday 2024',
-    status: 'Ativa',
-    spend: 456.78,
-    impressions: 12345,
-    clicks: 234,
-    ctr: 1.9,
-    conversions: 15
-  },
-  {
-    key: '2',
-    name: 'Promoção Verão - Produtos',
-    status: 'Ativa',
-    spend: 321.45,
-    impressions: 8976,
-    clicks: 167,
-    ctr: 1.86,
-    conversions: 9
-  },
-  {
-    key: '3',
-    name: 'Retargeting Site',
-    status: 'Ativa',
-    spend: 234.56,
-    impressions: 15432,
-    clicks: 456,
-    ctr: 2.95,
-    conversions: 23
-  }
-]
 
 export const DashboardPage: React.FC = () => {
   const { 
@@ -74,13 +23,71 @@ export const DashboardPage: React.FC = () => {
     setMetrics, 
     campaigns, 
     setCampaigns,
-    loading 
+    loading,
+    setLoading,
+    chartData,
+    setChartData
   } = useDashboardStore()
 
   useEffect(() => {
-    // Simular carregamento de dados
-    setMetrics(mockMetrics)
-    setCampaigns(mockCampaigns)
+    const fetchDashboardData = async () => {
+      if (!selectedAccount || !dateRange) return
+
+      try {
+        setLoading(true)
+        
+        // Obter token de autenticação
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          message.error('Sessão expirada. Faça login novamente.')
+          return
+        }
+
+        // Formatar datas para o formato YYYY-MM-DD
+        const startDate = dateRange[0].format('YYYY-MM-DD')
+        const endDate = dateRange[1].format('YYYY-MM-DD')
+
+        // Chamar Edge Function para buscar insights do dashboard
+        const { data, error } = await supabase.functions.invoke('get-dashboard-insights', {
+          body: {
+            ad_account_id: selectedAccount.meta_ad_account_id || selectedAccount.id,
+            start_date: startDate,
+            end_date: endDate,
+            level: 'campaign' // Para buscar dados por campanha também
+          },
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (error) {
+          console.error('Erro ao buscar insights:', error)
+          message.error('Erro ao carregar dados do dashboard')
+          return
+        }
+
+        if (!data?.success) {
+          message.error(data?.error || 'Erro ao carregar dados do dashboard')
+          return
+        }
+
+        // Atualizar estado com os dados recebidos
+        const dashboardData = data.data
+        
+        setMetrics(dashboardData.metrics)
+        setCampaigns(dashboardData.campaigns || [])
+        setChartData(dashboardData.chart_data || [])
+
+      } catch (error) {
+        console.error('Erro inesperado ao buscar dados:', error)
+        message.error('Erro inesperado ao carregar dados do dashboard')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
   }, [selectedAccount, dateRange])
 
   const formatCurrency = (value: number) => {
@@ -95,9 +102,9 @@ export const DashboardPage: React.FC = () => {
   }
 
   const chartConfig = {
-    data: mockChartData,
+    data: chartData || [],
     xField: 'date',
-    yField: 'gastos',
+    yField: 'spend',
     point: {
       size: 4,
       shape: 'circle',
@@ -105,7 +112,7 @@ export const DashboardPage: React.FC = () => {
     smooth: true,
     color: '#1890ff',
     meta: {
-      gastos: {
+      spend: {
         alias: 'Gastos (R$)',
         formatter: (value: number) => formatCurrency(value)
       },
@@ -178,10 +185,18 @@ export const DashboardPage: React.FC = () => {
     return (
       <AppLayout>
         <div className="p-8 text-center">
-          <Title level={3}>Selecione uma conta de anúncios</Title>
-          <p className="text-gray-600">
-            Escolha uma conta de anúncios no menu superior para visualizar as métricas.
-          </p>
+          <div className="max-w-md mx-auto">
+            <AlertCircle className="text-gray-400 mx-auto mb-4" size={64} />
+            <Title level={3} className="text-gray-600">Selecione uma conta de anúncios</Title>
+            <p className="text-gray-500 mb-4">
+              Escolha uma conta de anúncios no menu superior para visualizar as métricas.
+            </p>
+            {!loading && (
+              <p className="text-sm text-gray-400">
+                Se você não vê nenhuma conta disponível, verifique se conectou sua conta do Meta corretamente.
+              </p>
+            )}
+          </div>
         </div>
       </AppLayout>
     )
@@ -205,6 +220,7 @@ export const DashboardPage: React.FC = () => {
             format="DD/MM/YYYY"
             placeholder={['Data inicial', 'Data final']}
             size="large"
+            disabled={loading}
           />
         </div>
 
@@ -289,7 +305,16 @@ export const DashboardPage: React.FC = () => {
           <Row gutter={[16, 16]} className="mb-6">
             <Col span={24}>
               <Card title="Evolução dos Gastos" className="h-96">
-                <Line {...chartConfig} height={280} />
+                {chartData && chartData.length > 0 ? (
+                  <Line {...chartConfig} height={280} />
+                ) : (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="text-center text-gray-500">
+                      <AlertCircle size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>Nenhum dado disponível para o período selecionado</p>
+                    </div>
+                  </div>
+                )}
               </Card>
             </Col>
           </Row>
@@ -303,6 +328,9 @@ export const DashboardPage: React.FC = () => {
                   dataSource={campaigns}
                   pagination={{ pageSize: 10, showSizeChanger: true }}
                   size="middle"
+                  locale={{ 
+                    emptyText: 'Nenhuma campanha encontrada para o período selecionado' 
+                  }}
                 />
               </Card>
             </Col>
