@@ -14,7 +14,7 @@ export const OnboardingPage: React.FC = () => {
     try {
       // Aqui construiremos a URL de OAuth do Meta
       const clientId = import.meta.env.VITE_META_APP_ID
-      const redirectUri = encodeURIComponent(`${window.location.origin}/meta-callback`)
+      const redirectUri = encodeURIComponent(import.meta.env.VITE_META_REDIRECT_URI)
       const scope = 'ads_read,ads_management'
       
       const metaOAuthUrl = `https://www.facebook.com/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`

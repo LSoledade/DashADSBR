@@ -1,13 +1,14 @@
 import { create } from 'zustand'
 import dayjs, { Dayjs } from 'dayjs'
 
-interface AdAccount {
+export interface AdAccount {
   id: string
   name: string
   meta_ad_account_id: string
+  currency?: string
 }
 
-interface DashboardMetrics {
+export interface DashboardMetrics {
   spend: number
   impressions: number
   clicks: number
@@ -16,21 +17,40 @@ interface DashboardMetrics {
   conversions: number
 }
 
+export interface Campaign {
+  key: string
+  name: string
+  status: string
+  spend: number
+  impressions: number
+  clicks: number
+  ctr: number
+  conversions: number
+}
+
+export interface ChartDataPoint {
+  date: string
+  spend: number
+  impressions: number
+  clicks: number
+  conversions: number
+}
+
 interface DashboardState {
   selectedAccount: AdAccount | null
   adAccounts: AdAccount[]
   dateRange: [Dayjs, Dayjs]
   metrics: DashboardMetrics | null
-  campaigns: any[]
-  chartData: any[]
+  campaigns: Campaign[]
+  chartData: ChartDataPoint[]
   loading: boolean
   
   setSelectedAccount: (account: AdAccount | null) => void
   setAdAccounts: (accounts: AdAccount[]) => void
   setDateRange: (range: [Dayjs, Dayjs]) => void
   setMetrics: (metrics: DashboardMetrics | null) => void
-  setCampaigns: (campaigns: any[]) => void
-  setChartData: (data: any[]) => void
+  setCampaigns: (campaigns: Campaign[]) => void
+  setChartData: (data: ChartDataPoint[]) => void
   setLoading: (loading: boolean) => void
 }
 

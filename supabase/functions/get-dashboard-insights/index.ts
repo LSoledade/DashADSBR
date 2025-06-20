@@ -6,7 +6,7 @@
 
   ## Funcionalidade
   1. Valida autenticação e permissões do usuário
-  2. Busca métricas da Graph API do Meta
+  2. Busca métricas da Graph API do Meta com paginação completa
   3. Processa e formata dados para o dashboard
   4. Retorna KPIs principais e dados para gráficos
 
@@ -22,6 +22,7 @@
   - Validação de propriedade da conta de anúncio
   - Tratamento seguro de access tokens
   - Filtros de data validados
+  - Paginação completa para evitar perda de dados
 */
 
 import { createClient } from 'npm:@supabase/supabase-js@2.39.0'
@@ -52,7 +53,17 @@ interface MetricData {
     action_type: string
     value: string
   }>
+  campaign_id?: string
+  campaign_name?: string
   [key: string]: any
+}
+
+interface PaginatedResponse {
+  data: MetricData[]
+  paging?: {
+    next?: string
+    previous?: string
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -195,40 +206,57 @@ Deno.serve(async (req: Request) => {
       params.append('breakdowns', breakdown.join(','))
     }
 
-    const insightsUrl = `https://graph.facebook.com/v18.0/${ad_account_id}/insights?${params}`
+    let insightsUrl = `https://graph.facebook.com/v18.0/${ad_account_id}/insights?${params}`
+    let allMetrics: MetricData[] = []
 
-    // Fetch insights from Meta API
-    const insightsResponse = await fetch(insightsUrl, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    })
-
-    if (!insightsResponse.ok) {
-      const errorData = await insightsResponse.text()
-      console.error('Meta Insights API error:', errorData)
+    // Fetch all paginated results
+    do {
+      console.log('Fetching insights from:', insightsUrl)
       
-      if (insightsResponse.status === 401) {
+      const insightsResponse = await fetch(insightsUrl, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+
+      if (!insightsResponse.ok) {
+        const errorData = await insightsResponse.text()
+        console.error('Meta Insights API error:', errorData)
+        
+        if (insightsResponse.status === 401) {
+          return new Response(
+            JSON.stringify({ error: 'Token do Meta expirado. Reconecte sua conta.' }),
+            { 
+              status: 401, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          )
+        }
+
         return new Response(
-          JSON.stringify({ error: 'Token do Meta expirado. Reconecte sua conta.' }),
+          JSON.stringify({ error: 'Falha ao buscar métricas de insights' }),
           { 
-            status: 401, 
+            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
       }
 
-      return new Response(
-        JSON.stringify({ error: 'Falha ao buscar métricas de insights' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
+      const insightsData: PaginatedResponse = await insightsResponse.json()
+      const pageMetrics: MetricData[] = insightsData.data || []
+      
+      // Add current page metrics to the complete list
+      allMetrics = allMetrics.concat(pageMetrics)
+      
+      // Check if there's a next page
+      if (insightsData.paging?.next) {
+        insightsUrl = insightsData.paging.next
+      } else {
+        insightsUrl = '' // Exit the loop
+      }
+    } while (insightsUrl)
 
-    const insightsData = await insightsResponse.json()
-    const metrics: MetricData[] = insightsData.data || []
+    console.log(`Fetched ${allMetrics.length} total metrics from Meta API`)
 
     // Process and aggregate metrics
     let totalSpend = 0
@@ -238,7 +266,7 @@ Deno.serve(async (req: Request) => {
 
     const dailyMetrics: { [date: string]: any } = {}
 
-    metrics.forEach(metric => {
+    allMetrics.forEach(metric => {
       const spend = parseFloat(metric.spend || '0')
       const impressions = parseInt(metric.impressions || '0')
       const clicks = parseInt(metric.clicks || '0')
@@ -288,7 +316,7 @@ Deno.serve(async (req: Request) => {
     )
 
     // Format campaigns data if level is campaign
-    const campaigns = level === 'campaign' ? metrics.map(metric => ({
+    const campaigns = level === 'campaign' ? allMetrics.map(metric => ({
       key: metric.campaign_id,
       name: metric.campaign_name,
       status: 'Ativa',
@@ -296,9 +324,9 @@ Deno.serve(async (req: Request) => {
       impressions: parseInt(metric.impressions || '0'),
       clicks: parseInt(metric.clicks || '0'),
       ctr: parseFloat(metric.ctr || '0'),
-      conversions: metric.actions?.find(action => 
+      conversions: parseInt(metric.actions?.find(action => 
         ['purchase', 'lead', 'complete_registration'].includes(action.action_type)
-      )?.value || 0
+      )?.value || '0')
     })) : []
 
     return new Response(
@@ -315,7 +343,8 @@ Deno.serve(async (req: Request) => {
           period: {
             start_date,
             end_date
-          }
+          },
+          total_records: allMetrics.length
         }
       }),
       { 

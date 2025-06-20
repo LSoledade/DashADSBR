@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react'
-import { Row, Col, Card, Statistic, DatePicker, Typography, Table, Space, Spin } from 'antd'
-import { TrendingUp, TrendingDown, Eye, MousePointer, Target, DollarSign, AlertCircle } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Row, Col, Card, Statistic, DatePicker, Typography, Table, Space, Spin, Result, Button } from 'antd'
+import { TrendingUp, TrendingDown, Eye, MousePointer, Target, DollarSign, AlertCircle, RefreshCw } from 'lucide-react'
 import { Line } from '@ant-design/charts'
+import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import 'dayjs/locale/pt-br'
-import { useDashboardStore } from '../store/dashboardStore'
+import { useDashboardStore, Campaign, ChartDataPoint, AdAccount } from '../store/dashboardStore'
 import { AppLayout } from '../components/Layout/AppLayout'
 import { supabase } from '../lib/supabase'
 import { message } from 'antd'
@@ -29,12 +30,15 @@ export const DashboardPage: React.FC = () => {
     setChartData
   } = useDashboardStore()
 
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!selectedAccount || !dateRange) return
 
       try {
         setLoading(true)
+        setError(null) // Limpar erro anterior
         
         // Obter token de autenticação
         const { data: { session } } = await supabase.auth.getSession()
@@ -63,11 +67,13 @@ export const DashboardPage: React.FC = () => {
 
         if (error) {
           console.error('Erro ao buscar insights:', error)
+          setError('Falha ao carregar os dados do dashboard.')
           message.error('Erro ao carregar dados do dashboard')
           return
         }
 
         if (!data?.success) {
+          setError(data?.error || 'Erro ao carregar dados do dashboard')
           message.error(data?.error || 'Erro ao carregar dados do dashboard')
           return
         }
@@ -81,6 +87,7 @@ export const DashboardPage: React.FC = () => {
 
       } catch (error) {
         console.error('Erro inesperado ao buscar dados:', error)
+        setError('Falha ao carregar os dados do dashboard.')
         message.error('Erro inesperado ao carregar dados do dashboard')
       } finally {
         setLoading(false)
@@ -123,7 +130,7 @@ export const DashboardPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const columns: ColumnsType<Campaign> = [
     {
       title: 'Campanha',
       dataIndex: 'name',
@@ -149,37 +156,43 @@ export const DashboardPage: React.FC = () => {
       dataIndex: 'spend',
       key: 'spend',
       render: (value: number) => formatCurrency(value),
-      sorter: (a: any, b: any) => a.spend - b.spend
+      sorter: (a: Campaign, b: Campaign) => a.spend - b.spend
     },
     {
       title: 'Impressões',
       dataIndex: 'impressions',
       key: 'impressions',
       render: (value: number) => formatNumber(value),
-      sorter: (a: any, b: any) => a.impressions - b.impressions
+      sorter: (a: Campaign, b: Campaign) => a.impressions - b.impressions
     },
     {
       title: 'Cliques',
       dataIndex: 'clicks',
       key: 'clicks',
       render: (value: number) => formatNumber(value),
-      sorter: (a: any, b: any) => a.clicks - b.clicks
+      sorter: (a: Campaign, b: Campaign) => a.clicks - b.clicks
     },
     {
       title: 'CTR',
       dataIndex: 'ctr',
       key: 'ctr',
       render: (value: number) => `${value}%`,
-      sorter: (a: any, b: any) => a.ctr - b.ctr
+      sorter: (a: Campaign, b: Campaign) => a.ctr - b.ctr
     },
     {
       title: 'Conversões',
       dataIndex: 'conversions',
       key: 'conversions',
       render: (value: number) => formatNumber(value),
-      sorter: (a: any, b: any) => a.conversions - b.conversions
+      sorter: (a: Campaign, b: Campaign) => a.conversions - b.conversions
     }
   ]
+
+  const handleRetry = () => {
+    setError(null)
+    // Trigger refetch by updating the dateRange slightly
+    setDateRange([...dateRange])
+  }
 
   if (!selectedAccount) {
     return (
@@ -197,6 +210,43 @@ export const DashboardPage: React.FC = () => {
               </p>
             )}
           </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (error && !loading) {
+    return (
+      <AppLayout>
+        <div className="p-6">
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <Title level={2} className="!mb-1">Dashboard</Title>
+              <p className="text-gray-600">
+                Dados da conta: <strong>{selectedAccount.name}</strong>
+              </p>
+            </div>
+            
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => dates && setDateRange(dates)}
+              format="DD/MM/YYYY"
+              placeholder={['Data inicial', 'Data final']}
+              size="large"
+              disabled={loading}
+            />
+          </div>
+
+          <Result
+            status="error"
+            title="Erro ao Carregar Dados"
+            subTitle={error}
+            extra={[
+              <Button key="retry" type="primary" icon={<RefreshCw size={16} />} onClick={handleRetry}>
+                Tentar Novamente
+              </Button>
+            ]}
+          />
         </div>
       </AppLayout>
     )
