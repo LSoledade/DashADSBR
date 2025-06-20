@@ -52,6 +52,10 @@ function App() {
           />
           <Route 
             path="/auth/meta/callback" 
+            element={user ? <MetaCallbackPage /> : <Navigate to="/login" replace />}
+          />
+          <Route 
+            path="/meta-callback" 
             element={user ? <MetaCallbackPage /> : <Navigate to="/login" replace />} 
           />
           <Route 
